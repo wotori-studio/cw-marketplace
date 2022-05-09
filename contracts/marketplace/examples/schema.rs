@@ -3,8 +3,8 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use marketplace::msg::{BuyNft, HandleMsg, InitMsg, QueryMsg, SellNft};
-use marketplace::package::{ContractInfoResponse, OfferingsResponse, QueryOfferingsResult};
+use nftext_manager::msg::{BuyNft, HandleMsg, InitMsg, QueryMsg, SellNft};
+use nftext_manager::package::{ContractInfoResponse, OfferingsResponse, QueryOfferingsResult};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

@@ -1,5 +1,5 @@
-use cosmwasm_std::HumanAddr;
-use cw20::Cw20CoinHuman;
+use cosmwasm_std::Addr;
+use cw20::Cw20Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -12,9 +12,9 @@ pub struct ContractInfoResponse {
 pub struct QueryOfferingsResult {
     pub id: String,
     pub token_id: String,
-    pub list_price: Cw20CoinHuman,
-    pub contract_addr: HumanAddr,
-    pub seller: HumanAddr,
+    pub list_price: Cw20Coin,
+    pub contract_addr: Addr,
+    pub seller: Addr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -1,4 +1,4 @@
-use cw20::{Cw20CoinHuman, Cw20ReceiveMsg};
+use cw20::{Cw20Coin, Cw20ReceiveMsg};
 use cw721::Cw721ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SellNft {
-    pub list_price: Cw20CoinHuman,
+    pub list_price: Cw20Coin,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
