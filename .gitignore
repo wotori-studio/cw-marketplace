@@ -1,28 +1,16 @@
-# macOS
-.DS_Store
+# Build results
+/target
+/artifacts
+
+# Cargo+Git helper file (https://github.com/rust-lang/cargo/blob/0.44.1/src/cargo/sources/git/utils.rs#L320-L327)
+.cargo-ok
 
 # Text file backups
 **/*.rs.bk
 
-# Build results
-target/
+# macOS
+.DS_Store
 
 # IDEs
-.vscode/
-.idea/
 *.iml
-
-# Auto-gen
-.cargo-ok
-
-# Build artifacts
-*.wasm
-hash.txt
-contracts.txt
-artifacts/
-
-# Keys should be uploaded
-*.key
-
-# Internal stuff
-TRANSCRIPT.md
+.idea

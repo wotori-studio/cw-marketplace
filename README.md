@@ -1,143 +1,118 @@
-# Cosmons - An NFT Example for Managing Digital Collectibles
+# Marketplace Smart Contract
 
-## How to Build
+The marketplace smart contracts provides a generic platform used for selling and buying CW721 tokens with CW20 tokens. It maintains a list of all current offerings, including the seller's address, the token ID put up for sale, the list price of the token and the contract address the offerings originated from. This ensures maximum visibility on a per-sale instead of a per-contract basis, allowing users to browse through list of offerings in one central place.
 
-In order to optimize your smart contracts, you have to use:
+## Requirements
+
+* [Go `v1.14+`](https://golang.org/)
+* [Rust `v1.44.1+`](https://rustup.rs/)
+* [Wasmd v0.11.1](https://github.com/CosmWasm/wasmd/tree/v0.11.1)
+* [cosmwasm-plus v0.3.2](https://github.com/CosmWasm/cosmwasm-plus)
+  * [cw20-base](https://github.com/CosmWasm/cosmwasm-plus/tree/master/contracts/cw20-base)
+  * [cosmons](https://github.com/BlockscapeNetwork/hackatom_v/tree/master/contracts/cosmons)
+
+## Setup Environment
+
+1) Follow [the CosmWasm docs](https://docs.cosmwasm.com/getting-started/installation.html) to install `go v1.14+`, `rust v1.44.1+` and `wasmd v0.11.1`
+2) Once you've built `wasmd`, use the `wasmcli` to join the `hackatom-wasm` chain.
+
+> :information_source: If you want to deploy your own contracts on your own chain, check out the [HOWTO](HOWTO.md).
 
 ```shell
-docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
-  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/workspace-optimizer:0.10.4
+wasmcli config chain-id hackatom-wasm
+wasmcli config indent true
+wasmcli config keyring-backend test
+wasmcli config node https://rpc.cosmwasm.hub.hackatom.dev:443
+wasmcli config output json
+wasmcli config trust-node true
 ```
 
-## How to Work with REPL
+3) Create an account with some tokens from the [faucet](https://five.hackatom.org/resources). Otherwise, you won't be able to make any transactions.
 
-`npx @cosmjs/cli@^0.23 --init contracts/cosmons/helpers.ts`
+> :information_source: **If you already have an account with funds, you can skip this step.**
 
-:warning: Please, keep in mind that helper.ts uses a local wasmd 0.11.1 instance (localnetOptions). Please, update your parameters accordingly.
-
-For hackatom net, you need to use `defaultOptions` in useOptions.
-
-### Using a contract
-
-```typescript
-// Hackatom_V Net
-const client = await useOptions(defaultOptions).setup(<YOUR PASSWORD>);
-const partner = await useOptions(defaultOptions).setup(<YOUR PASSWORD>, "/Users/user/.hackatom2.key");
-
-// localnet
-const client = await useOptions(localnetOptions).setup(<YOUR PASSWORD>, "/Users/user/localnet.key");
-const partner = await useOptions(localnetOptions).setup(<YOUR PASSWORD>, "/Users/user/localnet2.key");
-
-const address = client.senderAddress;
-const partnerAddr = partner.senderAddress;
+```shell
+# Create account and save mnemonics
+wasmcli keys add myacc
 ```
 
-### Get the Factory
+4) Before you can buy or sell CW721 tokens, you will need some CW20 tokens. You can get them from our faucet: `POST 3.121.232.142:8080/faucet`
 
-```typescript
-const cw721 = CW721(client);
+Example payload:
+
+```json
+{
+  "address": "<INSERT_ACCOUNT_ADDRESS>"
+}
 ```
 
-### Verify Funds in the Account
+## Contract Addresses
 
-```typescript
-client.getAccount()
-partner.getAccount()
+| Contract        | Address                                       |
+|:----------------|:----------------------------------------------|
+| marketplace     | cosmos1knqr4zclds5zhn5khkpexkd7nctwe8z0s2qer4 |
+| cw20-base       | cosmos1kfz3mj84atqjld0ge9eccujvqqkqdr4qqs9ud7 |
+| cosmons (cw721) | cosmos1zhh3m9sg5e2qvjgwr49r79pf5pt65yuxvs7cs0 |
+
+## Messages
+
+### Sell CW721 Token
+
+Puts an NFT token up for sale.
+
+> :warning: The seller needs to be the owner of the token to be able to sell it.
+
+```shell
+# Execute send_nft action to put token up for sale for specified list_price on the marketplace
+wasmcli tx wasm execute <CW721_BASE_CONTRACT_ADDR> '{
+  "send_nft": {
+    "contract": "<MARKETPLACE_CONTRACT_ADDR>",
+    "token_id": "<TOKEN_ID>",
+    "msg": "BASE64_ENCODED_JSON --> { "list_price": { "address": "<INSERT_CW20_CONTRACT_ADDR>", "amount": "<INSERT_AMOUNT_WITHOUT_DENOM>" }} <--"
+  }
+}' --gas-prices="0.025ucosm" --gas="auto" --gas-adjustment="1.2" -y --from client
 ```
 
-### Use Existing Accounts
+### Withdraw CW721 Token Offering
 
-You can skip this section if followed this transcript up until here.
+Withdraws an NFT token offering from the global offerings list and returns the NFT token back to its owner.
 
-```typescript
-const fred = "cosmos1rgd5jtgp22vq44xz4c69x5z9mu0q92ujcnqdgw";
-const bob = "cosmos1exmd9ml0adgkuggd6knqcjgw4e3x84r4hhfr07";
+> :warning: Only the token's owner/seller can withdraw the offering. This will only work after having used `sell_nft` on a token.
+
+```shell
+# Execute withdraw_nft action to withdraw the token with the specified offering_id from the marketplace
+wasmcli tx wasm execute <MARKETPLACE_CONTRACT_ADDR> '{
+  "withdraw_nft": {
+    "offering_id": "<INSERT_OFFERING_ID>"
+  }
+}' --gas-prices="0.025ucosm" --gas="auto" --gas-adjustment="1.2" -y --from client
 ```
 
-Query accounts:
-`wasmcli query account $(wasmcli keys show -a fred)`
-`wasmcli query account $(wasmcli keys show -a vhx)`
+### Buy CW721 Token
 
-### Instantiate the Contract
+Buys an NFT token, transferring funds to the seller and the token to the buyer.
 
-```typescript
-const codeId = <your CodeID>; // wasmcli q wasm list-code & find your contract ID
-const initMsg = { name: "Cosmons", symbol: "mons",  minter: address };
-const contract = await client.instantiate(codeId, initMsg, "Virtual Cosmons 1");
+> :warning: This will only work after having used `sell_nft` on a token.
+
+```shell
+# Execute send action to buy token with the specified offering_id from the marketplace
+wasmcli tx wasm execute <CW20_BASE_CONTRACT_ADDR> '{
+  "send": {
+    "contract": "<MARKETPLACE_CONTRACT_ADDR>",
+    "amount": "<INSERT_AMOUNT>",
+    "msg": "BASE64_ENCODED_JSON --> { "offering_id": "<INSERT_OFFERING_ID>" } <--"
+  }
+}' --gas-prices="0.025ucosm" --gas="auto" --gas-adjustment="1.2" -y --from client
 ```
 
-**OR**
+## Queries
 
-```typescript
-const contract = client.getContracts(<your codeID>); // And check for your contractAddress
+### Query Offerings
+
+Retrieves a list of all currently listed offerings.
+
+```shell
+wasmcli query wasm contract-state smart <MARKETPLACE_CONTRACT_ADDR> '{
+  "get_offerings": {}
+}'
 ```
-
-### Use Contract
-
-```typescript
-const mine = cw721.use(contract.contractAddress);
-```
-
-### Mint a Cosmon NFT
-
-```typescript
-mine.mint("monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb", address, "Cosmos", "Minted Cosmon!");
-```
-
-### Approve Token Transfer
-
-> :warning: Needs to be called before `transferNft`.
-
-```typescript
-mine.approve(address, "monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb");
-```
-
-### Revoke Token Transfer
-
-> :warning: `transferNft` will not work after using `revoke`.
-
-```typescript
-mine.revoke(address, "monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb");
-```
-
-### Transfer Token to Partner
-
-> :warning: Needs to be called after `approve`.
-
-```typescript
-mine.transferNft(partnerAddr, "monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb");
-```
-
-#### Queries
-
-```typescript
-mine.nftInfo("monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb")
-mine.ownerOf("monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb")
-mine.numTokens()
-mine.tokens(address, "", 10)
-mine.allNftInfo("monster112a9lf95atqvyejqe22xnna8x4mfqd75tkq2kvwcjyysarcsb")
-mine.allTokens("", 10)
-```
-
-### Errata
-
-Faucet is not supported.
-
-## Licenses
-
-This repo contains two license, [Apache 2.0](./LICENSE-APACHE) and
-[AGPL 3.0](./LICENSE-AGPL.md). All crates in this repo may be licensed
-as one or the other. Please check the `NOTICE` in each crate or the 
-relevant `Cargo.toml` file for clarity.
-
-All *specifications* will always be Apache-2.0. All contracts that are
-meant to be *building blocks* will also be Apache-2.0. This is along
-the lines of Open Zepellin or other public references.
-
-Contracts that are "ready to deploy" may be licensed under AGPL 3.0 to 
-encourage anyone using them to contribute back any improvements they
-make. This is common practice for actual projects running on Ethereum,
-like Uniswap or Maker DAO.
-
